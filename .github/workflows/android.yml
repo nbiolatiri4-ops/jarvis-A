@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -26,15 +26,14 @@ jobs:
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ""
 
-      - name: Accept Android SDK licences
-        run: yes | sdkmanager --licenses || true
-
-      - name: Install Android SDK components
+      - name: Install required Android SDK packages
         run: |
-          set -e
-          sdkmanager \
+          set -euo pipefail
+          sdkmanager --install \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
@@ -44,7 +43,7 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: Create Android project
+      - name: Generate Android project
         shell: bash
         run: |
           set -euo pipefail
@@ -156,7 +155,7 @@ jobs:
               int bg = Color.rgb(8, 9, 13);
               TextView answer, status;
               EditText input;
-              LinearLayout root, messages;
+              LinearLayout root;
               TextToSpeech tts;
               SpeechRecognizer recognizer;
               String workerUrl = "";
@@ -166,6 +165,7 @@ jobs:
               final ArrayList<String> history = new ArrayList<>();
               android.content.SharedPreferences prefs;
 
+              @Override
               public void onCreate(Bundle saved) {
                   super.onCreate(saved);
                   getWindow().setStatusBarColor(bg);
@@ -176,8 +176,9 @@ jobs:
                   accessToken = prefs.getString("token", "");
 
                   tts = new TextToSpeech(this, result -> {
-                      if (result == TextToSpeech.SUCCESS)
+                      if (result == TextToSpeech.SUCCESS) {
                           tts.setLanguage(Locale.US);
+                      }
                   });
 
                   buildUI();
@@ -215,12 +216,12 @@ jobs:
                   title.setTypeface(null, Typeface.BOLD);
                   root.addView(title, new LinearLayout.LayoutParams(-1, 55));
 
-                  TextView sub = text("PERSONAL AI ASSISTANT", 11, Color.LTGRAY);
-                  root.addView(sub);
+                  root.addView(text("PERSONAL AI ASSISTANT", 11, Color.LTGRAY));
 
                   TextView orb = text("✦", 64, gold);
                   orb.setBackground(shape(Color.rgb(20, 19, 23), 300, 2));
-                  LinearLayout.LayoutParams op = new LinearLayout.LayoutParams(190, 190);
+                  LinearLayout.LayoutParams op =
+                      new LinearLayout.LayoutParams(190, 190);
                   op.gravity = Gravity.CENTER;
                   op.setMargins(0, 30, 0, 20);
                   root.addView(orb, op);
@@ -233,7 +234,8 @@ jobs:
                   answer.setTextSize(16);
                   answer.setPadding(16, 18, 16, 18);
                   answer.setBackground(shape(Color.rgb(19, 20, 26), 18, 1));
-                  LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(-1, -2);
+                  LinearLayout.LayoutParams ap =
+                      new LinearLayout.LayoutParams(-1, -2);
                   ap.setMargins(0, 24, 0, 18);
                   root.addView(answer, ap);
 
@@ -255,7 +257,7 @@ jobs:
                   root.addView(buttons);
 
                   addButton(buttons, "ASK", () -> submit());
-                  addButton(buttons, "🎙 VOICE", () -> listen());
+                  addButton(buttons, "VOICE", () -> listen());
                   addButton(buttons, "SETTINGS", () -> settings());
 
                   LinearLayout quick = new LinearLayout(this);
@@ -265,9 +267,8 @@ jobs:
                   addButton(quick, "NOTES", () -> notes());
                   addButton(quick, "HELP", () -> help());
 
-                  TextView foot = text("PRIVATE PROTOTYPE • BLACK / GOLD", 10,
-                      Color.GRAY);
-                  root.addView(foot);
+                  root.addView(text("PRIVATE PROTOTYPE • BLACK / GOLD",
+                      10, Color.GRAY));
               }
 
               void addButton(LinearLayout parent, String label, Runnable action) {
@@ -277,8 +278,8 @@ jobs:
                   b.setTextColor(gold);
                   b.setAllCaps(false);
                   b.setBackground(shape(Color.rgb(28, 27, 30), 14, 1));
-                  LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                      0, 52, 1);
+                  LinearLayout.LayoutParams p =
+                      new LinearLayout.LayoutParams(0, 52, 1);
                   p.setMargins(3, 3, 3, 3);
                   parent.addView(b, p);
                   b.setOnClickListener(v -> action.run());
@@ -289,8 +290,9 @@ jobs:
               }
 
               void say(String s) {
-                  if (speaking && tts != null)
+                  if (speaking && tts != null) {
                       tts.speak(s, TextToSpeech.QUEUE_FLUSH, null, "jarvis_reply");
+                  }
               }
 
               void respond(String s) {
@@ -303,7 +305,7 @@ jobs:
                   String q = input.getText().toString().trim();
                   if (q.isEmpty()) return;
                   input.setText("");
-                  ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE))
+                  ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE))
                       .hideSoftInputFromWindow(input.getWindowToken(), 0);
                   command(q);
               }
@@ -317,6 +319,7 @@ jobs:
                           .format(new Date()));
                       return;
                   }
+
                   if (q.contains("what date") || q.contains("today's date")
                       || q.equals("date")) {
                       respond("Today is " +
@@ -324,50 +327,59 @@ jobs:
                           Locale.getDefault()).format(new Date()));
                       return;
                   }
+
                   if (q.equals("help") || q.contains("what can you do")) {
                       help();
                       return;
                   }
+
                   if (q.contains("open calculator")) {
                       launchIntent(new Intent("android.intent.action.MAIN")
                           .addCategory("android.intent.category.APP_CALCULATOR"),
                           "I could not find a calculator app.");
                       return;
                   }
+
                   if (q.contains("open camera")) {
                       launchIntent(new Intent("android.media.action.IMAGE_CAPTURE"),
                           "I could not open the camera.");
                       return;
                   }
+
                   if (q.contains("open settings")) {
                       launchIntent(new Intent(android.provider.Settings.ACTION_SETTINGS),
                           "I could not open Settings.");
                       return;
                   }
+
                   if (q.contains("open bluetooth")) {
                       launchIntent(new Intent(android.provider.Settings
                           .ACTION_BLUETOOTH_SETTINGS),
                           "I could not open Bluetooth settings.");
                       return;
                   }
+
                   if (q.contains("open wi-fi") || q.contains("open wifi")) {
                       launchIntent(new Intent(android.provider.Settings
                           .ACTION_WIFI_SETTINGS),
                           "I could not open Wi-Fi settings.");
                       return;
                   }
+
                   if (q.contains("open youtube")) {
                       launchIntent(new Intent(Intent.ACTION_VIEW,
                           Uri.parse("https://www.youtube.com")),
                           "Could not open YouTube.");
                       return;
                   }
+
                   if (q.contains("open chrome")) {
                       launchIntent(new Intent(Intent.ACTION_VIEW,
                           Uri.parse("https://www.google.com")),
                           "Could not open a browser.");
                       return;
                   }
+
                   if (q.contains("open whatsapp")) {
                       Intent i = getPackageManager()
                           .getLaunchIntentForPackage("com.whatsapp");
@@ -375,25 +387,30 @@ jobs:
                       else launchIntent(i, "Could not open WhatsApp.");
                       return;
                   }
+
                   if (q.startsWith("note ")) {
                       saveNote(original.substring(5).trim());
                       return;
                   }
+
                   if (q.contains("show notes") || q.equals("notes")) {
                       notes();
                       return;
                   }
+
                   if (q.contains("stop talking") || q.contains("mute")) {
                       speaking = false;
                       if (tts != null) tts.stop();
                       showReply("Voice replies muted. Type a command to continue.");
                       return;
                   }
+
                   if (q.contains("speak again") || q.contains("unmute")) {
                       speaking = true;
                       respond("Voice replies enabled.");
                       return;
                   }
+
                   askAI(original);
               }
 
@@ -409,11 +426,12 @@ jobs:
 
               void saveNote(String note) {
                   if (note.isEmpty()) {
-                      respond("Tell me what you want to save. Say: note followed by your note.");
+                      respond("Tell me what you want to save. Type note followed by your note.");
                       return;
                   }
-                  Set<String> old = new HashSet<>(prefs.getStringSet("notes",
-                      new HashSet<>()));
+
+                  Set<String> old = new HashSet<>(
+                      prefs.getStringSet("notes", new HashSet<>()));
                   old.add(new SimpleDateFormat("yyyy-MM-dd HH:mm",
                       Locale.getDefault()).format(new Date()) + " — " + note);
                   prefs.edit().putStringSet("notes", old).apply();
@@ -426,6 +444,7 @@ jobs:
                       respond("You have no saved notes. Type note followed by your note.");
                       return;
                   }
+
                   StringBuilder b = new StringBuilder("YOUR NOTES\n\n");
                   for (String s : n) b.append("• ").append(s).append("\n\n");
                   respond(b.toString());
@@ -440,9 +459,11 @@ jobs:
                       respond("Speech recognition is unavailable on this phone.");
                       return;
                   }
+
                   try {
                       if (recognizer != null) recognizer.destroy();
                       recognizer = SpeechRecognizer.createSpeechRecognizer(this);
+
                       recognizer.setRecognitionListener(new RecognitionListener() {
                           public void onReadyForSpeech(Bundle b) {
                               status.setText("LISTENING...");
@@ -467,7 +488,8 @@ jobs:
                           }
                           public void onPartialResults(Bundle b) {}
                           public void onEvent(int a, Bundle b) {}
-                        });
+                      });
+
                       Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
                       i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                           RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
@@ -486,5 +508,4 @@ jobs:
                   EditText url = new EditText(this);
                   url.setSingleLine(true);
                   url.setHint("Cloudflare Worker URL ending in /chat");
-                  url.setText(workerUrl);
-                  
+                  url.s                  

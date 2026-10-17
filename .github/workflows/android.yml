@@ -107,7 +107,9 @@ jobs:
           EOF
 
           cat > android-app/app/src/main/java/com/jarvis/assistant/MainActivity.java <<'EOF'
-          package com.jarvis.assistant;
+          package com.jarvis.assistant;              setContentView(layout);
+          }
+      }
 
           import android.app.Activity;
           import android.os.Bundle;

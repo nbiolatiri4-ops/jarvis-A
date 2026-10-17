@@ -1,3 +1,4 @@
+
 name: Build JARVIS Android APK
 
 on:
@@ -83,8 +84,8 @@ jobs:
                   applicationId 'com.jarvis.assistant'
                   minSdk 23
                   targetSdk 35
-                  versionCode 1
-                  versionName '1.0'
+                  versionCode 2
+                  versionName '1.1'
               }
           }
           EOF
@@ -93,62 +94,296 @@ jobs:
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application
                   android:label="JARVIS"
-                  android:theme="@android:style/Theme.Material.NoActionBar">
+                  android:theme="@android:style/Theme.Material.NoActionBar"
+                  android:usesCleartextTraffic="false">
+
                   <activity
                       android:name=".MainActivity"
                       android:exported="true">
+
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
+
                   </activity>
               </application>
           </manifest>
           EOF
 
           cat > android-app/app/src/main/java/com/jarvis/assistant/MainActivity.java <<'EOF'
-          package com.jarvis.assistant;              setContentView(layout);
-          }
-      }
+          package com.jarvis.assistant;
 
           import android.app.Activity;
           import android.os.Bundle;
           import android.graphics.Color;
+          import android.graphics.Typeface;
+          import android.content.Intent;
+          import android.provider.Settings;
+          import android.net.Uri;
           import android.view.Gravity;
+          import android.view.View;
+          import android.view.inputmethod.InputMethodManager;
+          import android.content.Context;
           import android.widget.LinearLayout;
           import android.widget.TextView;
+          import android.widget.EditText;
+          import android.widget.Button;
+          import android.widget.ScrollView;
+          import android.widget.Toast;
+          import java.text.SimpleDateFormat;
+          import java.util.Date;
+          import java.util.Locale;
 
           public class MainActivity extends Activity {
+
+              private final int gold = Color.rgb(224, 195, 133);
+              private final int black = Color.rgb(8, 8, 10);
+              private TextView response;
+              private EditText commandInput;
+
               @Override
               public void onCreate(Bundle state) {
                   super.onCreate(state);
 
-                  getWindow().getDecorView()
-                      .setBackgroundColor(Color.rgb(10, 15, 25));
+                  getWindow().setStatusBarColor(black);
+                  getWindow().setNavigationBarColor(black);
+                  getWindow().getDecorView().setBackgroundColor(black);
 
-                  LinearLayout layout = new LinearLayout(this);
-                  layout.setOrientation(LinearLayout.VERTICAL);
-                  layout.setGravity(Gravity.CENTER);
-                  layout.setPadding(32, 32, 32, 32);
+                  LinearLayout root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setGravity(Gravity.CENTER_HORIZONTAL);
+                  root.setPadding(24, 36, 24, 24);
+                  root.setBackgroundColor(black);
 
                   TextView title = new TextView(this);
                   title.setText("J.A.R.V.I.S");
-                  title.setTextColor(Color.rgb(0, 220, 255));
-                  title.setTextSize(32);
+                  title.setTextColor(gold);
+                  title.setTextSize(30);
+                  title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
                   title.setGravity(Gravity.CENTER);
 
-                  TextView message = new TextView(this);
-                  message.setText(
-                      "Personal Assistant\n\nJARVIS is online.\nYour foundation is ready."
-                  );
-                  message.setTextColor(Color.WHITE);
-                  message.setTextSize(18);
-                  message.setGravity(Gravity.CENTER);
-                  message.setPadding(0, 24, 0, 0);
+                  TextView subtitle = new TextView(this);
+                  subtitle.setText("PERSONAL INTELLIGENCE SYSTEM");
+                  subtitle.setTextColor(Color.LTGRAY);
+                  subtitle.setTextSize(10);
+                  subtitle.setGravity(Gravity.CENTER);
+                  subtitle.setPadding(0, 8, 0, 24);
 
-                  layout.addView(title);
-                  layout.addView(message);
-                  setContentView(layout);
+                  TextView orb = new TextView(this);
+                  orb.setText("◉");
+                  orb.setTextColor(gold);
+                  orb.setTextSize(76);
+                  orb.setGravity(Gravity.CENTER);
+                  orb.setPadding(0, 8, 0, 8);
+
+                  TextView status = new TextView(this);
+                  status.setText("OFFLINE COMMAND MODE");
+                  status.setTextColor(gold);
+                  status.setTextSize(12);
+                  status.setGravity(Gravity.CENTER);
+                  status.setPadding(0, 4, 0, 24);
+
+                  commandInput = new EditText(this);
+                  commandInput.setSingleLine(true);
+                  commandInput.setHint("Type a command...");
+                  commandInput.setHintTextColor(Color.GRAY);
+                  commandInput.setTextColor(Color.WHITE);
+                  commandInput.setTextSize(16);
+                  commandInput.setPadding(16, 12, 16, 12);
+                  commandInput.setBackgroundTintList(
+                      android.content.res.ColorStateList.valueOf(gold)
+                  );
+
+                  Button execute = new Button(this);
+                  execute.setText("EXECUTE COMMAND");
+                  execute.setTextColor(black);
+                  execute.setBackgroundTintList(
+                      android.content.res.ColorStateList.valueOf(gold)
+                  );
+                  execute.setOnClickListener(v -> runCommand(
+                      commandInput.getText().toString()
+                  ));
+
+                  response = new TextView(this);
+                  response.setText("JARVIS is ready.\nEnter a command to begin.");
+                  response.setTextColor(Color.WHITE);
+                  response.setTextSize(15);
+                  response.setGravity(Gravity.CENTER);
+                  response.setPadding(8, 24, 8, 24);
+
+                  ScrollView scroll = new ScrollView(this);
+                  LinearLayout.LayoutParams scrollParams =
+                      new LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT, 0, 1
+                      );
+                  scroll.addView(response);
+
+                  root.addView(title);
+                  root.addView(subtitle);
+                  root.addView(orb);
+                  root.addView(status);
+                  root.addView(commandInput);
+                  root.addView(execute);
+                  root.addView(scroll, scrollParams);
+
+                  addQuickButton(root, "TIME", "time");
+                  addQuickButton(root, "PHONE SETTINGS", "settings");
+                  addQuickButton(root, "HELP", "help");
+
+                  setContentView(root);
+              }
+
+              private void addQuickButton(
+                  LinearLayout root, String label, String command
+              ) {
+                  Button button = new Button(this);
+                  button.setText(label);
+                  button.setTextColor(gold);
+                  button.setBackgroundTintList(
+                      android.content.res.ColorStateList.valueOf(
+                          Color.rgb(35, 32, 27)
+                      )
+                  );
+                  button.setOnClickListener(v -> runCommand(command));
+                  root.addView(button);
+              }
+
+              private void say(String text) {
+                  response.setText(text);
+              }
+
+              private void runCommand(String raw) {
+                  String command = raw.trim().toLowerCase(Locale.ROOT);
+
+                  ((InputMethodManager) getSystemService(
+                      Context.INPUT_METHOD_SERVICE
+                  )).hideSoftInputFromWindow(
+                      commandInput.getWindowToken(), 0
+                  );
+
+                  if (command.isEmpty()) {
+                      say("Please enter a command.");
+                      return;
+                  }
+
+                  try {
+                      if (command.equals("time")
+                          || command.contains("what time")
+                          || command.equals("date")) {
+
+                          String now = new SimpleDateFormat(
+                              "EEEE, d MMMM yyyy\nhh:mm a",
+                              Locale.getDefault()
+                          ).format(new Date());
+
+                          say("The current date and time:\n" + now);
+                          return;
+                      }
+
+                      if (command.equals("help")
+                          || command.contains("what can you do")) {
+                          say("OFFLINE COMMANDS\n\n"
+                              + "time — Show date and time\n"
+                              + "settings — Open phone settings\n"
+                              + "wifi — Open Wi-Fi settings\n"
+                              + "bluetooth — Open Bluetooth settings\n"
+                              + "camera — Open camera\n"
+                              + "dialer — Open phone dialer\n"
+                              + "open YouTube\n"
+                              + "open Chrome\n"
+                              + "open WhatsApp\n\n"
+                              + "Internet AI and voice control are not "
+                              + "connected yet.");
+                          return;
+                      }
+
+                      if (command.contains("wifi")
+                          || command.contains("wi-fi")) {
+                          startActivity(new Intent(
+                              Settings.ACTION_WIFI_SETTINGS
+                          ));
+                          say("Opening Wi-Fi settings.");
+                          return;
+                      }
+
+                      if (command.contains("bluetooth")) {
+                          startActivity(new Intent(
+                              Settings.ACTION_BLUETOOTH_SETTINGS
+                          ));
+                          say("Opening Bluetooth settings.");
+                          return;
+                      }
+
+                      if (command.equals("settings")
+                          || command.contains("phone settings")
+                          || command.contains("open settings")) {
+                          startActivity(new Intent(
+                              Settings.ACTION_SETTINGS
+                          ));
+                          say("Opening phone settings.");
+                          return;
+                      }
+
+                      if (command.contains("camera")) {
+                          startActivity(new Intent(
+                              "android.media.action.IMAGE_CAPTURE"
+                          ));
+                          say("Opening camera.");
+                          return;
+                      }
+
+                      if (command.contains("dialer")
+                          || command.contains("phone app")) {
+                          startActivity(new Intent(
+                              Intent.ACTION_DIAL,
+                              Uri.parse("tel:")
+                          ));
+                          say("Opening phone dialer.");
+                          return;
+                      }
+
+                      if (command.startsWith("open ")) {
+                          String app = command.substring(5).trim();
+                          String packageName = "";
+
+                          if (app.contains("youtube")) {
+                              packageName = "com.google.android.youtube";
+                          } else if (app.contains("chrome")) {
+                              packageName = "com.android.chrome";
+                          } else if (app.contains("whatsapp")) {
+                              packageName = "com.whatsapp";
+                          } else if (app.contains("calculator")) {
+                              packageName = "com.google.android.calculator";
+                          }
+
+                          if (!packageName.isEmpty()) {
+                              Intent launch = getPackageManager()
+                                  .getLaunchIntentForPackage(packageName);
+
+                              if (launch != null) {
+                                  startActivity(launch);
+                                  say("Opening " + app + ".");
+                              } else {
+                                  say(app + " is not installed, or Android "
+                                      + "does not allow it to be opened.");
+                              }
+                              return;
+                          }
+                      }
+
+                      say("I don't recognise that offline command yet.\n\n"
+                          + "Type 'help' to see available commands.");
+
+                  } catch (Exception e) {
+                      say("I couldn't complete that action. Your phone "
+                          + "may restrict it, or the required app "
+                          + "may not be available.");
+                      Toast.makeText(
+                          this, "Command unavailable",
+                          Toast.LENGTH_SHORT
+                      ).show();
+                  }
               }
           }
           EOF
@@ -162,7 +397,7 @@ jobs:
           gradle-version: '8.7'
           cache-disabled: true
 
-      - name: Verify build tools and project
+      - name: Verify project
         shell: bash
         run: |
           set -euo pipefail
@@ -173,6 +408,8 @@ jobs:
           test -f android-app/app/build.gradle
           test -f android-app/app/src/main/AndroidManifest.xml
           test -f android-app/app/src/main/java/com/jarvis/assistant/MainActivity.java
+          grep -q 'package com.jarvis.assistant;' android-app/app/src/main/java/com/jarvis/assistant/MainActivity.java
+          echo "Project verification passed."
 
       - name: Build debug APK
         working-directory: android-app
@@ -202,3 +439,4 @@ jobs:
           path: android-app/
           if-no-files-found: warn
           retention-days: 7
+          
